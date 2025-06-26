@@ -7,6 +7,8 @@ import FormInput from '../components/FormInput';
 import Button from '../components/Button';
 import toast from 'react-hot-toast';
 import PasswordGenerator from '../components/PasswordGenerator';
+import { useAuth } from '../context/AuthContext';
+import { invoke } from '@tauri-apps/api/core';
 
 // The updated Password type for the frontend
 type Password = {
@@ -21,6 +23,7 @@ type Password = {
 
 // --- The Create Password Form Component ---
 function CreatePasswordForm({ onFormSubmit }: { onFormSubmit: () => void }) {
+    const { token } = useAuth();
     const [key, setKey] = useState('');
     const [value, setValue] = useState('');
     const [notes, setNotes] = useState('');
@@ -31,7 +34,7 @@ function CreatePasswordForm({ onFormSubmit }: { onFormSubmit: () => void }) {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await apiClient.post('/passwords', { key, value, notes });
+            await invoke('create_password', { token, key, value, notes });
             toast.success('Password created successfully!');
             onFormSubmit(); // Notify parent to close modal and refresh
         } catch (err: any) {

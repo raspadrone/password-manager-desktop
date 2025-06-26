@@ -7,6 +7,7 @@ import { useAppContext } from '../App';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { invoke } from '@tauri-apps/api/core';
 
 export default function LoginPage() {
     const [username, setUsername] = useState('');
@@ -61,13 +62,13 @@ export default function LoginPage() {
         setError(null);   // Clear previous errors
 
         try {
-            const response = await apiClient.post('/login', {
-                username,
-                password,
+            const token = await invoke<string>('login', {
+                usernameParam: username,
+                passwordParam: password,
             });
 
             // --- SUCCESS ---
-            login(response.data.token);
+            login(token);
             navigate('/dashboard');
             // TODO: In next step, we will store this token.
 
