@@ -33,12 +33,22 @@ function CreatePasswordForm({ onFormSubmit }: { onFormSubmit: () => void }) {
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsSubmitting(true);
+        if (!token) {
+            toast.error("Authentication error. Please log in again.");
+            setIsSubmitting(false);
+            return;
+        }
         try {
-            await invoke('create_password', { token, key, value, notes });
+            await invoke('create_password', { 
+                token, 
+                someKey: key, 
+                someValue: value, 
+                someNotes: notes || null, 
+            });
             toast.success('Password created successfully!');
             onFormSubmit(); // Notify parent to close modal and refresh
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to create password.');
+            toast.error(err as string);
         } finally {
             setIsSubmitting(false);
         }
