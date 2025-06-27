@@ -213,7 +213,7 @@ export default function DashboardPage() {
                     <li key={p.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
                         <div className="flex-grow cursor-pointer pr-4" onClick={() => setEditingPassword(p)}>
                             <p className="font-mono font-semibold text-slate-800">{p.key}</p>
-                            {p.notes && <p className="text-sm text-slate-500 truncate">{p.notes}</p>}
+                            {p.notes && <p className="text-sm text-slate-500 truncate">{p.notes.length < 20 ? p.notes : p.notes.slice(0, 20) + '...'}</p>}
                         </div>
                         <Button
                             onClick={(e) => {
