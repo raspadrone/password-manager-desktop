@@ -226,19 +226,12 @@ async fn create_password(
     some_value: String,
     some_notes: Option<String>,
 ) -> Result<PasswordResponse, String> {
-    let state = app.state::<AppState>();
-    // 1. Authenticate the command
-    let _user_id = validate_token(&token, &state.jwt_secret)?;
-
-    // 2. Get DB connection
-    let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
-
-    // 3. Prepare and execute the query
+    let (mut conn, auth_user_id) = state_conn_token(&app, token).await?;
     let new_password = NewPassword {
         key: &some_key,
         value: &some_value,
         notes: some_notes.as_deref(), // Convert Option<String> to Option<&str>
-        user_id: _user_id,
+        user_id: auth_user_id,
     };
 
     let created_password = diesel::insert_into(passwords::table)
@@ -253,11 +246,9 @@ async fn create_password(
 
 #[tauri::command]
 async fn get_all_passwords(app: tauri::AppHandle, token: String) -> Result<Vec<Password>, String> {
-    let state = app.state::<AppState>();
-    let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
-    let user_id_from_token = validate_token(&token, &state.jwt_secret)?;
+    let (mut conn, auth_user_id) = state_conn_token(&app, token).await?;
     let result = passwords // Start with the 'passwords' table from the schema
-        .filter(user_id.eq(user_id_from_token)) // Find all passwords for this user
+        .filter(user_id.eq(auth_user_id)) // Find all passwords for this user
         .load::<Password>(&mut conn) // Execute the query and load results into a Vec<Password>
         .await
         .map_err(|e| e.to_string())?;
@@ -265,7 +256,7 @@ async fn get_all_passwords(app: tauri::AppHandle, token: String) -> Result<Vec<P
     Ok(result)
 }
 
-async fn state_conn_token(app: tauri::AppHandle, token: String) -> Result<(Object<AsyncDieselConnectionManager<AsyncPgConnection>>, Uuid), String>{
+async fn state_conn_token(app: &tauri::AppHandle, token: String) -> Result<(Object<AsyncDieselConnectionManager<AsyncPgConnection>>, Uuid), String>{
     let state = app.state::<AppState>();
     let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
     let user_id_from_token = validate_token(&token, &state.jwt_secret)?;
@@ -278,7 +269,7 @@ async fn delete_password(
     token: String,
     some_key: String,
 ) -> Result<PasswordResponse, String> {
-    let (mut conn, auth_user_id) = state_conn_token(app, token).await?;
+    let (mut conn, auth_user_id) = state_conn_token(&app, token).await?;
 
     let deleted_pass = diesel::delete(
         passwords
