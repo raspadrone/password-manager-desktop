@@ -165,14 +165,22 @@ export default function DashboardPage() {
     };
     // const handleUpdateSuccess = () => { setEditingPassword(null); fetchPasswords(); };
     const handleDeletePassword = async () => {
+        if (!token) {
+            setLoading(false);
+            setError("Authentication token not found.");
+            return;
+        }
         if (!deletingPassword) return; // Safety check
         try {
-            await apiClient.delete(`/passwords/${deletingPassword.key}`);
+            await invoke<Password>(`delete_password`, {
+                token,
+                someKey: deletingPassword.key
+            });
             toast.success(`'${deletingPassword.key}' was deleted.`);
             setDeletingPassword(null); // Close the confirmation modal
             fetchPasswords();          // Refresh the list
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to delete password.');
+            toast.error(err as string || 'Failed to delete password.');
         }
     };
 

@@ -21,6 +21,7 @@ use argon2::{PasswordHash, PasswordHasher, PasswordVerifier};
 // use axum_extra::headers::authorization::Bearer;
 // use axum_extra::headers::{Authorization, HeaderMapExt};
 use chrono::{DateTime, Duration, Utc};
+use deadpool::managed::Object;
 use diesel::prelude::{Insertable, Queryable};
 use diesel::result::Error;
 use dotenvy::dotenv;
@@ -251,10 +252,7 @@ async fn create_password(
 }
 
 #[tauri::command]
-async fn get_all_passwords(
-    app: tauri::AppHandle,
-    token: String,
-) -> Result<Vec<Password>, String> {
+async fn get_all_passwords(app: tauri::AppHandle, token: String) -> Result<Vec<Password>, String> {
     let state = app.state::<AppState>();
     let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
     let user_id_from_token = validate_token(&token, &state.jwt_secret)?;
@@ -267,6 +265,33 @@ async fn get_all_passwords(
     Ok(result)
 }
 
+async fn state_conn_token(app: tauri::AppHandle, token: String) -> Result<(Object<AsyncDieselConnectionManager<AsyncPgConnection>>, Uuid), String>{
+    let state = app.state::<AppState>();
+    let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
+    let user_id_from_token = validate_token(&token, &state.jwt_secret)?;
+    Ok((conn, user_id_from_token))
+}
+
+#[tauri::command]
+async fn delete_password(
+    app: tauri::AppHandle, 
+    token: String,
+    some_key: String,
+) -> Result<PasswordResponse, String> {
+    let (mut conn, auth_user_id) = state_conn_token(app, token).await?;
+
+    let deleted_pass = diesel::delete(
+        passwords
+            .filter(key.eq(&some_key))
+            .filter(user_id.eq(auth_user_id)),
+    )
+    .get_result::<Password>(&mut conn)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(deleted_pass.into())
+}
+
 #[tauri::command]
 async fn login(
     app: tauri::AppHandle,
@@ -275,16 +300,11 @@ async fn login(
 ) -> Result<String, String> {
     let state = app.state::<AppState>();
 
-    let mut conn = state.db_pool.get().await
-        .map_err(|e| e.to_string())?;
+    let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
 
     let user = users
         .filter(username.eq(&username_param))
-        .select((
-            users::id,
-            users::username,
-            users::hashed_password,
-        ))
+        .select((users::id, users::username, users::hashed_password))
         .first::<DbUser>(&mut conn)
         .await
         .map_err(|_| "Invalid username or password".to_string())?;
@@ -293,10 +313,10 @@ async fn login(
         .map_err(|e| format!("Internal server error: {}", e))?;
 
     let argon2 = Argon2::default();
-    if argon2.verify_password(
-        password_param.as_bytes(),
-        &parsed_hash
-    ).is_err() {
+    if argon2
+        .verify_password(password_param.as_bytes(), &parsed_hash)
+        .is_err()
+    {
         return Err("Invalid username or password".to_string());
     }
 
@@ -335,7 +355,12 @@ fn main() {
             db_pool: pool,
             jwt_secret,
         })
-        .invoke_handler(tauri::generate_handler![login, create_password, get_all_passwords])
+        .invoke_handler(tauri::generate_handler![
+            login,
+            create_password,
+            get_all_passwords,
+            delete_password
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
