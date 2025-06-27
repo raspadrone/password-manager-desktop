@@ -39,11 +39,11 @@ function CreatePasswordForm({ onFormSubmit }: { onFormSubmit: () => void }) {
             return;
         }
         try {
-            await invoke('create_password', { 
-                token, 
-                someKey: key, 
-                someValue: value, 
-                someNotes: notes || null, 
+            await invoke('create_password', {
+                token,
+                someKey: key,
+                someValue: value,
+                someNotes: notes || null,
             });
             toast.success('Password created successfully!');
             onFormSubmit(); // Notify parent to close modal and refresh
@@ -134,20 +134,26 @@ export default function DashboardPage() {
     const [editingPassword, setEditingPassword] = useState<Password | null>(null);
     const [deletingPassword, setDeletingPassword] = useState<Password | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const { token } = useAuth();
 
     const fetchPasswords = useCallback(async () => {
+        if (!token) {
+            setLoading(false);
+            setError("Authentication token not found.");
+            return;
+        }
         try {
             setLoading(true);
-            const response = await apiClient.get('/passwords');
-            setPasswords(response.data);
+            const result = await invoke<Password[]>('get_all_passwords', { token });
+            setPasswords(result);
         } catch (err: any) {
-            const msg = err.response?.data?.error || 'Failed to fetch passwords.';
-            setError(msg);
-            toast.error(msg);
+            const errorMessage = typeof err === 'string' ? err : 'Failed to fetch passwords.';
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [token]);
 
     useEffect(() => {
         fetchPasswords();

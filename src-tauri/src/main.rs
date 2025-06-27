@@ -251,6 +251,23 @@ async fn create_password(
 }
 
 #[tauri::command]
+async fn get_all_passwords(
+    app: tauri::AppHandle,
+    token: String,
+) -> Result<Vec<Password>, String> {
+    let state = app.state::<AppState>();
+    let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
+    let user_id_from_token = validate_token(&token, &state.jwt_secret)?;
+    let result = passwords // Start with the 'passwords' table from the schema
+        .filter(user_id.eq(user_id_from_token)) // Find all passwords for this user
+        .load::<Password>(&mut conn) // Execute the query and load results into a Vec<Password>
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(result)
+}
+
+#[tauri::command]
 async fn login(
     app: tauri::AppHandle,
     username_param: String,
@@ -318,7 +335,7 @@ fn main() {
             db_pool: pool,
             jwt_secret,
         })
-        .invoke_handler(tauri::generate_handler![login, create_password])
+        .invoke_handler(tauri::generate_handler![login, create_password, get_all_passwords])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
