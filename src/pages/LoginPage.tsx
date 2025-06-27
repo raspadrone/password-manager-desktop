@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import Button from '../components/Button';
 import FormInput from '../components/FormInput';
-import apiClient from '../api';
 import MenuButton from '../components/MenuButton';
 import { useAppContext } from '../App';
 import { useLocation, useNavigate } from 'react-router-dom';

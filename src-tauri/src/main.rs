@@ -31,6 +31,7 @@ use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::types::uuid;
+use tauri::Manager;
 use tower_http::cors::CorsLayer;
 
 use std::{borrow::Cow, env, net::SocketAddr, process};
@@ -218,23 +219,24 @@ fn validate_token(token: &str, secret: &str) -> Result<Uuid, String> {
 
 #[tauri::command]
 async fn create_password(
-    store: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
     token: String,
-    _key: String,
-    _value: String,
-    _notes: Option<String>,
+    some_key: String,
+    some_value: String,
+    some_notes: Option<String>,
 ) -> Result<PasswordResponse, String> {
+    let state = app.state::<AppState>();
     // 1. Authenticate the command
-    let _user_id = validate_token(&token, &store.jwt_secret)?;
+    let _user_id = validate_token(&token, &state.jwt_secret)?;
 
     // 2. Get DB connection
-    let mut conn = store.db_pool.get().await.map_err(|e| e.to_string())?;
+    let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
 
     // 3. Prepare and execute the query
     let new_password = NewPassword {
-        key: &_key,
-        value: &_value,
-        notes: _notes.as_deref(), // Convert Option<String> to Option<&str>
+        key: &some_key,
+        value: &some_value,
+        notes: some_notes.as_deref(), // Convert Option<String> to Option<&str>
         user_id: _user_id,
     };
 
@@ -248,29 +250,38 @@ async fn create_password(
     Ok(created_password.into())
 }
 
-// --- Tauri Command ---
 #[tauri::command]
 async fn login(
-    store: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
     username_param: String,
     password_param: String,
 ) -> Result<String, String> {
-    let mut conn = store.db_pool.get().await.map_err(|e| format!("{:?}", e))?;
+    let state = app.state::<AppState>();
+
+    let mut conn = state.db_pool.get().await
+        .map_err(|e| e.to_string())?;
 
     let user = users
         .filter(username.eq(&username_param))
-        .select((users::id, users::username, users::hashed_password))
+        .select((
+            users::id,
+            users::username,
+            users::hashed_password,
+        ))
         .first::<DbUser>(&mut conn)
         .await
-        .map_err(|e| format!("{:?}", e))?;
+        .map_err(|_| "Invalid username or password".to_string())?;
 
     let parsed_hash = PasswordHash::new(&user.hashed_password)
-        .map_err(|e| format!("Failed to parse password hash: {}", e))?;
+        .map_err(|e| format!("Internal server error: {}", e))?;
 
     let argon2 = Argon2::default();
-    argon2
-        .verify_password(password_param.as_bytes(), &parsed_hash)
-        .map_err(|_| "Invalid password".to_string())?;
+    if argon2.verify_password(
+        password_param.as_bytes(),
+        &parsed_hash
+    ).is_err() {
+        return Err("Invalid username or password".to_string());
+    }
 
     let now = Utc::now();
     let expiration = (now + Duration::hours(1)).timestamp();
@@ -283,7 +294,7 @@ async fn login(
     let token = encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(store.jwt_secret.as_bytes()),
+        &EncodingKey::from_secret(state.jwt_secret.as_bytes()),
     )
     .map_err(|e| format!("Failed to generate token: {}", e))?;
 
