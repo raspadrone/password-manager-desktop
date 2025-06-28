@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import apiClient from '../api';
 import toast from 'react-hot-toast';
 import Button from './Button';
+import { invoke } from '@tauri-apps/api/core';
 
 // This component will receive a function from its parent to call when a password is generated and "used"
 type PasswordGeneratorProps = {
@@ -23,16 +23,17 @@ export default function PasswordGenerator({ onPasswordGenerated }: PasswordGener
         setIsLoading(true);
         setGeneratedPassword('');
         try {
-            const params = {
+            const newPassword = await invoke<string>('generate_password', {
                 length,
-                include_uppercase: includeUppercase,
-                include_numbers: includeNumbers,
-                include_symbols: includeSymbols,
-            };
-            const response = await apiClient.get('/generate-password', { params });
-            setGeneratedPassword(response.data.password);
+                includeUppercase,
+                includeNumbers,
+                includeSymbols,
+            });
+            setGeneratedPassword(newPassword);
+            toast.success('New password generated!');
         } catch (err) {
             toast.error('Failed to generate password.');
+            console.error(err);
         } finally {
             setIsLoading(false);
         }

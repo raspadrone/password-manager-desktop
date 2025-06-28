@@ -386,7 +386,7 @@ fn generate_password(
     include_symbols: bool,
 ) -> String {
     // This is the same logic from your original Axum handler
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut password_chars = Vec::new();
     let mut char_set: Vec<char> = ('a'..='z').collect();
 

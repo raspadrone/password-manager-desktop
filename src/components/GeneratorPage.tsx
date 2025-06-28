@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import apiClient from '../api';
 import toast from 'react-hot-toast';
 import Button from '../components/Button';
 import { useAppContext } from '../App';
