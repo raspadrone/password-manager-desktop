@@ -437,7 +437,8 @@ fn main() {
             create_password,
             get_all_passwords,
             delete_password,
-            register
+            register,
+            generate_password
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

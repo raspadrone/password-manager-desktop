@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import Button from '../components/Button';
 import { useAppContext } from '../App';
 import MenuButton from '../components/MenuButton';
+import { invoke } from '@tauri-apps/api/core';
 
 // Helper component for the copy icon
 function CopyIcon() {
@@ -27,20 +28,20 @@ export default function GeneratorPage() {
     const handleGenerate = async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams({
-                length: String(length),
-                include_uppercase: String(includeUppercase),
-                include_numbers: String(includeNumbers),
-                include_symbols: String(includeSymbols),
-            });
-            const response = await apiClient.get(`/generate-password?${params.toString()}`);
-            setGeneratedPassword(response.data.password);
-            toast.success('New password generated!');
-        } catch (err) {
-            toast.error('Failed to generate password.');
-        } finally {
-            setLoading(false);
-        }
+            const newPassword = await invoke<string>('generate_password', {
+            length,
+            includeUppercase,
+            includeNumbers,
+            includeSymbols,
+        });
+        setGeneratedPassword(newPassword);
+        toast.success('New password generated!');
+    } catch (err) {
+        toast.error('Failed to generate password.');
+        console.error(err);
+    } finally {
+        setLoading(false);
+    }
     };
 
     const handleCopyToClipboard = () => {
