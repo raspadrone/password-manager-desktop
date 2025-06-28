@@ -144,6 +144,13 @@ struct DbUser {
     hashed_password: String,
 }
 
+#[derive(Queryable, Debug, Serialize)]
+pub struct UserResponse {
+    pub id: Uuid,
+    pub username: String,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Insertable)]
 #[diesel(table_name = passwords)]
 pub struct NewPassword<'a> {
@@ -218,6 +225,22 @@ fn validate_token(token: &str, secret: &str) -> Result<Uuid, String> {
     Uuid::parse_str(&token_data.claims.sub).map_err(|_| "Invalid user ID in token".to_string())
 }
 
+async fn state_conn_token(
+    app: &tauri::AppHandle,
+    token: String,
+) -> Result<
+    (
+        Object<AsyncDieselConnectionManager<AsyncPgConnection>>,
+        Uuid,
+    ),
+    String,
+> {
+    let state = app.state::<AppState>();
+    let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
+    let user_id_from_token = validate_token(&token, &state.jwt_secret)?;
+    Ok((conn, user_id_from_token))
+}
+
 #[tauri::command]
 async fn create_password(
     app: tauri::AppHandle,
@@ -256,16 +279,9 @@ async fn get_all_passwords(app: tauri::AppHandle, token: String) -> Result<Vec<P
     Ok(result)
 }
 
-async fn state_conn_token(app: &tauri::AppHandle, token: String) -> Result<(Object<AsyncDieselConnectionManager<AsyncPgConnection>>, Uuid), String>{
-    let state = app.state::<AppState>();
-    let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
-    let user_id_from_token = validate_token(&token, &state.jwt_secret)?;
-    Ok((conn, user_id_from_token))
-}
-
 #[tauri::command]
 async fn delete_password(
-    app: tauri::AppHandle, 
+    app: tauri::AppHandle,
     token: String,
     some_key: String,
 ) -> Result<PasswordResponse, String> {
@@ -281,6 +297,39 @@ async fn delete_password(
     .map_err(|e| e.to_string())?;
 
     Ok(deleted_pass.into())
+}
+
+#[tauri::command]
+async fn register(
+    app: tauri::AppHandle,
+    username_param: String,
+    password_param: String,
+) -> Result<UserResponse, String> {
+    let state = app.state::<AppState>();
+    let mut conn = state.db_pool.get().await.map_err(|e| e.to_string())?;
+
+    // Hash the password
+    let salt = SaltString::generate(&mut OsRng);
+    let hashed_pass = Argon2::default()
+        .hash_password(password_param.as_bytes(), &salt)
+        .map_err(|e| e.to_string())?
+        .to_string();
+
+    // Prepare the new user for insertion
+    let new_user = NewUser {
+        username: &username_param,
+        hashed_password: &hashed_pass,
+    };
+
+    // Insert the user and return the specified fields
+    let user = diesel::insert_into(users::table)
+        .values(&new_user)
+        .returning((users::id, users::username, users::created_at))
+        .get_result::<UserResponse>(&mut conn)
+        .await
+        .map_err(|_| "Username may already be taken.".to_string())?;
+
+    Ok(user)
 }
 
 #[tauri::command]
@@ -350,7 +399,8 @@ fn main() {
             login,
             create_password,
             get_all_passwords,
-            delete_password
+            delete_password,
+            register
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

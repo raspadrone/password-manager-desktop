@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // Import for redirection
 import Button from '../components/Button';
 import FormInput from '../components/FormInput';
-import apiClient from '../api';
 import { useAppContext } from '../App';
 import MenuButton from '../components/MenuButton';
 import toast from 'react-hot-toast';
+import { invoke } from '@tauri-apps/api/core';
 
 export default function RegisterPage() {
     const [username, setUsername] = useState('');
@@ -24,9 +24,9 @@ export default function RegisterPage() {
 
         try {
             // only API change is endpoint: /register
-            await apiClient.post('/register', {
-                username,
-                password,
+            await invoke('register', {
+                usernameParam: username,
+                passwordParam: password,
             });
 
             // --- SUCCESS ---
@@ -35,11 +35,11 @@ export default function RegisterPage() {
 
         } catch (err: any) {
             // --- FAILURE ---
-            if (err.response && err.response.data && err.response.data.error) {
-                setError(err.response.data.error);
-            } else {
-                setError('An unexpected error occurred. Please try again.');
-            }
+            const errorMessage = typeof err === 'string'
+                ? err
+                : 'An unexpected error occurred.';
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
