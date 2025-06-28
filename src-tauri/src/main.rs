@@ -378,6 +378,43 @@ async fn login(
     Ok(token)
 }
 
+#[tauri::command]
+fn generate_password(
+    length: u8,
+    include_uppercase: bool,
+    include_numbers: bool,
+    include_symbols: bool,
+) -> String {
+    // This is the same logic from your original Axum handler
+    let mut rng = rand::thread_rng();
+    let mut password_chars = Vec::new();
+    let mut char_set: Vec<char> = ('a'..='z').collect();
+
+    if include_uppercase {
+        let uppercase_chars: Vec<char> = ('A'..='Z').collect();
+        char_set.extend(&uppercase_chars);
+        password_chars.push(*uppercase_chars.choose(&mut rng).unwrap());
+    }
+    if include_numbers {
+        let number_chars: Vec<char> = ('0'..='9').collect();
+        char_set.extend(&number_chars);
+        password_chars.push(*number_chars.choose(&mut rng).unwrap());
+    }
+    if include_symbols {
+        let symbol_chars: Vec<char> = "!@#$%^&*()_+-=[]{}|;:,.<>?".chars().collect();
+        char_set.extend(&symbol_chars);
+        password_chars.push(*symbol_chars.choose(&mut rng).unwrap());
+    }
+
+    let remaining_length = length.saturating_sub(password_chars.len() as u8);
+    for _ in 0..remaining_length {
+        password_chars.push(*char_set.choose(&mut rng).unwrap());
+    }
+
+    password_chars.shuffle(&mut rng);
+    password_chars.into_iter().collect()
+}
+
 // --- Main Application Entry Point ---
 fn main() {
     dotenv().ok();
