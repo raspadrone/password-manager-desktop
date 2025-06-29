@@ -279,14 +279,19 @@ async fn get_all_passwords(app: tauri::AppHandle, token: String) -> Result<Vec<P
     Ok(result)
 }
 
-async fn update_password_handler(
-    app: tauri::AppHandle, 
+#[tauri::command]
+async fn update_password(
+    app: tauri::AppHandle,
     token: String,
     some_key: String,
-    payload: PasswordEntryUpdate
+    some_value: String,
+    some_notes: Option<String>,
 ) -> Result<PasswordResponse, String> {
     let (mut conn, auth_user_id) = state_conn_token(&app, token).await?;
-
+    let payload = PasswordEntryUpdate {
+        value: some_value,
+        notes: some_notes,
+    };
     let updated_pass = diesel::update(
         passwords
             .filter(key.eq(&some_key))
@@ -457,6 +462,7 @@ fn main() {
             login,
             create_password,
             get_all_passwords,
+            update_password,
             delete_password,
             register,
             generate_password
