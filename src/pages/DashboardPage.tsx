@@ -254,6 +254,7 @@ export default function DashboardPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     required={false}
+                    onClear={() => setSearchTerm('')}
                 />
             </div>
             {renderContent()}
