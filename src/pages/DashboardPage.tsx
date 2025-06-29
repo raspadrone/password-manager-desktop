@@ -241,9 +241,11 @@ export default function DashboardPage() {
     return (
         <div>
             <div className="fixed top-4 right-4 z-30"><MenuButton onClick={openSidebar} /></div>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between pr-16">
                 <h1 className="text-3xl font-bold">Dashboard</h1>
-                <Button onClick={() => setCreateModalOpen(true)}>New Password</Button>
+                <Button onClick={() => setCreateModalOpen(true)} className="lg:w-auto w-full">
+                    New Password
+                </Button>
             </div>
             <div className="mb-6">
                 <FormInput
