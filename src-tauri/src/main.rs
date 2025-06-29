@@ -279,6 +279,27 @@ async fn get_all_passwords(app: tauri::AppHandle, token: String) -> Result<Vec<P
     Ok(result)
 }
 
+async fn update_password_handler(
+    app: tauri::AppHandle, 
+    token: String,
+    some_key: String,
+    payload: PasswordEntryUpdate
+) -> Result<PasswordResponse, String> {
+    let (mut conn, auth_user_id) = state_conn_token(&app, token).await?;
+
+    let updated_pass = diesel::update(
+        passwords
+            .filter(key.eq(&some_key))
+            .filter(user_id.eq(auth_user_id)),
+    )
+    .set(&payload) // Pass a reference to our AsChangeset struct
+    .get_result::<Password>(&mut conn)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(updated_pass.into())
+}
+
 #[tauri::command]
 async fn delete_password(
     app: tauri::AppHandle,
