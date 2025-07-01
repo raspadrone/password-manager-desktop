@@ -5,6 +5,7 @@
 
 use argon2::{Argon2, password_hash::SaltString};
 use argon2::{PasswordHash, PasswordHasher, PasswordVerifier};
+use axum::routing::connect;
 // use axum::Extension;
 // use axum::body::Body;
 // use axum::extract::Query;
@@ -35,6 +36,7 @@ use sqlx::types::uuid;
 use tauri::Manager;
 use tower_http::cors::CorsLayer;
 
+use std::fs::File;
 use std::{borrow::Cow, env, net::SocketAddr, process};
 use tokio::net::TcpListener;
 use uuid::Uuid;
@@ -215,6 +217,13 @@ impl From<Password> for PasswordResponse {
     }
 }
 
+#[derive(Deserialize)]
+pub struct CsvPasswordRecord {
+    pub key: String,
+    pub value: String,
+    pub notes: Option<String>,
+}
+
 // This helper function takes a token and returns the user_id if it's valid
 fn validate_token(token: &str, secret: &str) -> Result<Uuid, String> {
     let decoding_key = DecodingKey::from_secret(secret.as_bytes());
@@ -227,7 +236,7 @@ fn validate_token(token: &str, secret: &str) -> Result<Uuid, String> {
 
 async fn state_conn_token(
     app: &tauri::AppHandle,
-    token: String,
+    token: &String,
 ) -> Result<
     (
         Object<AsyncDieselConnectionManager<AsyncPgConnection>>,
@@ -249,7 +258,7 @@ async fn create_password(
     some_value: String,
     some_notes: Option<String>,
 ) -> Result<PasswordResponse, String> {
-    let (mut conn, auth_user_id) = state_conn_token(&app, token).await?;
+    let (mut conn, auth_user_id) = state_conn_token(&app, &token).await?;
     let new_password = NewPassword {
         key: &some_key,
         value: &some_value,
@@ -269,7 +278,7 @@ async fn create_password(
 
 #[tauri::command]
 async fn get_all_passwords(app: tauri::AppHandle, token: String) -> Result<Vec<Password>, String> {
-    let (mut conn, auth_user_id) = state_conn_token(&app, token).await?;
+    let (mut conn, auth_user_id) = state_conn_token(&app, &token).await?;
     let result = passwords // Start with the 'passwords' table from the schema
         .filter(user_id.eq(auth_user_id)) // Find all passwords for this user
         .load::<Password>(&mut conn) // Execute the query and load results into a Vec<Password>
@@ -287,7 +296,7 @@ async fn update_password(
     some_value: String,
     some_notes: Option<String>,
 ) -> Result<PasswordResponse, String> {
-    let (mut conn, auth_user_id) = state_conn_token(&app, token).await?;
+    let (mut conn, auth_user_id) = state_conn_token(&app, &token).await?;
     let payload = PasswordEntryUpdate {
         value: some_value,
         notes: some_notes,
@@ -311,7 +320,7 @@ async fn delete_password(
     token: String,
     some_key: String,
 ) -> Result<PasswordResponse, String> {
-    let (mut conn, auth_user_id) = state_conn_token(&app, token).await?;
+    let (mut conn, auth_user_id) = state_conn_token(&app, &token).await?;
 
     let deleted_pass = diesel::delete(
         passwords
@@ -441,6 +450,54 @@ fn generate_password(
     password_chars.into_iter().collect()
 }
 
+// imports 1 csv record
+#[tauri::command]
+pub async fn get_one_from_csv(
+    app_handle: tauri::AppHandle,
+    token: String,
+    file_path: String,
+) -> Result<String, String> {
+    // Get an authenticated database connection
+    let (mut conn, auth_user_id) = state_conn_token(&app_handle, &token).await?;
+
+    // Open the file specified by the frontend
+    let file = File::open(file_path).map_err(|e| format!("Failed to open file: {}", e))?;
+
+    let mut rdr = csv::Reader::from_reader(file);
+    let mut imported_count = 0;
+
+    // Loop through each row in the CSV
+    for result in rdr.deserialize() {
+        let record: CsvPasswordRecord = result.map_err(|e| format!("CSV Parse Error: {}", e))?;
+
+        let new_password = NewPassword {
+            key: &record.key,
+            value: &record.value,
+            notes: record.notes.as_deref(),
+            user_id: auth_user_id,
+        };
+
+        // Insert the record. This will fail if a key already exists.
+        diesel::insert_into(passwords::table)
+            .values(&new_password)
+            .execute(&mut conn)
+            .await
+            .map_err(|_| {
+                format!(
+                    "Database Error: Could not import key '{}'. It may already exist.",
+                    record.key
+                )
+            })?;
+
+        imported_count += 1;
+    }
+
+    Ok(format!(
+        "Successfully imported {} passwords.",
+        imported_count
+    ))
+}
+
 // --- Main Application Entry Point ---
 fn main() {
     dotenv().ok();
@@ -465,7 +522,8 @@ fn main() {
             update_password,
             delete_password,
             register,
-            generate_password
+            generate_password,
+            get_one_from_csv
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
