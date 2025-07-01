@@ -480,13 +480,19 @@ async fn get_one_from_csv(
             .values(&new_password)
             .execute(&mut conn)
             .await
-            .map_err(|_| {
+            // .map_err(|_| {
+            //     format!(
+            //         "Database Error: Could not import key '{}'. It may already exist.",
+            //         record.key
+            //     )
+            // })?;
+            .map_err(|e| {
                 format!(
-                    "Database Error: Could not import key '{}'. It may already exist.",
-                    record.key
+                    "Database Error on key '{}': {}",
+                    record.key,
+                    e // This `e` is the original error from the database
                 )
             })?;
-
         imported_count += 1;
     }
 
