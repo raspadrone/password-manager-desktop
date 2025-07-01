@@ -32,9 +32,7 @@ use rand::seq::{IndexedRandom, SliceRandom};
 use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::types::uuid;
 use tauri::Manager;
-use tower_http::cors::CorsLayer;
 
 use std::fs::File;
 use std::{borrow::Cow, env, net::SocketAddr, process};
@@ -452,7 +450,7 @@ fn generate_password(
 
 // imports 1 csv record
 #[tauri::command]
-pub async fn get_one_from_csv(
+async fn get_one_from_csv(
     app_handle: tauri::AppHandle,
     token: String,
     file_path: String,
