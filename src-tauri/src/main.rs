@@ -509,6 +509,7 @@ fn main() {
         .expect("Failed to create database pool.");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             db_pool: pool,
             jwt_secret,

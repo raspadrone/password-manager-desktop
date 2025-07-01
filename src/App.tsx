@@ -46,7 +46,7 @@ function App() {
             <AuthWatcher />
             <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-            <main className="container mx-auto p-4">
+            <main className="container mx-auto p-4 pr-20">
                 <div className="mt-4 md:mt-8">
                     {/* pass openSidebar function down to Outlet */}
                     <Outlet context={{ openSidebar: () => setSidebarOpen(true) }} />

@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import PasswordGenerator from '../components/PasswordGenerator';
 import { useAuth } from '../context/AuthContext';
 import { invoke } from '@tauri-apps/api/core';
-
+import { open } from '@tauri-apps/plugin-dialog';
 // The updated Password type for the frontend
 type Password = {
     id: string;
@@ -196,6 +196,35 @@ export default function DashboardPage() {
         p.key.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const handleImport = async () => {
+        if (!token) {
+            toast.error("Authentication error.");
+            return;
+        }
+        try {
+            // Open the native OS file dialog
+            const selectedPath = await open({
+                title: "Import Passwords from CSV",
+                multiple: false,
+                filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+            });
+
+            if (typeof selectedPath === 'string') {
+                // Invoke the backend command with the user-provided name
+                const resultMessage = await invoke<string>('get_one_from_csv', {
+                    token,
+                    filePath: selectedPath,
+                });
+
+                toast.success(resultMessage);
+                fetchPasswords(); // Refresh the password list
+            }
+        } catch (err: any) {
+            const errorMessage = typeof err === 'string' ? err : "Import failed.";
+            toast.error(errorMessage);
+        }
+    };
+
     const renderContent = () => {
         if (loading) {
             return <p>Loading passwords...</p>;
@@ -241,12 +270,24 @@ export default function DashboardPage() {
     return (
         <div>
             <div className="fixed top-4 right-4 z-30"><MenuButton onClick={openSidebar} /></div>
-            <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between pr-16">
+            {/*  */}
+            <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
                 <h1 className="text-3xl font-bold">Dashboard</h1>
-                <Button onClick={() => setCreateModalOpen(true)} className="lg:w-auto w-full">
-                    New Password
-                </Button>
+
+                {/* This wrapper div groups the buttons together */}
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                        onClick={handleImport}
+                        className="!bg-white !text-slate-800 border border-slate-300 hover:!bg-slate-100"
+                    >
+                        Import from CSV
+                    </Button>
+                    <Button onClick={() => setCreateModalOpen(true)}>
+                        New Password
+                    </Button>
+                </div>
             </div>
+            {/*  */}
             <div className="mb-6">
                 <FormInput
                     label="Search Passwords"
