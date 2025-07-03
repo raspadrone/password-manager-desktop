@@ -104,7 +104,7 @@ function EditPasswordForm({ password, onFormSubmit }: EditPasswordFormProps) {
         try {
             await invoke(`update_password`, {
                 token,
-                someKey: password.key,
+                someId: password.id,
                 someValue: value,
                 someNotes: notes || null,
                 someLoginUri: loginUri || null
@@ -190,7 +190,7 @@ export default function DashboardPage() {
         try {
             await invoke<Password>(`delete_password`, {
                 token,
-                someKey: deletingPassword.key
+                someId: deletingPassword.id
             });
             toast.success(`'${deletingPassword.key}' was deleted.`);
             setDeletingPassword(null); // Close the confirmation modal

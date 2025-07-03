@@ -299,7 +299,7 @@ async fn get_all_passwords(app: tauri::AppHandle, token: String) -> Result<Vec<P
 async fn update_password(
     app: tauri::AppHandle,
     token: String,
-    some_key: String,
+    some_id: Uuid,
     some_value: String,
     some_notes: Option<String>,
     some_login_uri: Option<String>,
@@ -312,8 +312,8 @@ async fn update_password(
     };
     let updated_pass = diesel::update(
         passwords
-            .filter(key.eq(&some_key))
-            .filter(user_id.eq(auth_user_id)),
+            .filter(passwords::id.eq(&some_id))
+            .filter(passwords::user_id.eq(auth_user_id)),
     )
     .set(&payload) // Pass a reference to our AsChangeset struct
     .get_result::<Password>(&mut conn)
@@ -327,14 +327,14 @@ async fn update_password(
 async fn delete_password(
     app: tauri::AppHandle,
     token: String,
-    some_key: String,
+    some_id: Uuid,
 ) -> Result<PasswordResponse, String> {
     let (mut conn, auth_user_id) = state_conn_token(&app, &token).await?;
 
     let deleted_pass = diesel::delete(
         passwords
-            .filter(key.eq(&some_key))
-            .filter(user_id.eq(auth_user_id)),
+            .filter(passwords::id.eq(&some_id))
+            .filter(passwords::user_id.eq(auth_user_id)),
     )
     .get_result::<Password>(&mut conn)
     .await
