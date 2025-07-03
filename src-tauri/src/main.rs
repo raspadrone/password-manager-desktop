@@ -159,10 +159,10 @@ pub struct NewPassword<'a> {
     pub user_id: Uuid,
     pub notes: Option<&'a str>,
     pub login_uri: Option<&'a str>,
-    
 }
 
 #[derive(Debug, Clone, PartialEq, Queryable, Insertable, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[diesel(table_name = schema::passwords)]
 pub struct Password {
     pub id: Uuid,
@@ -172,10 +172,11 @@ pub struct Password {
     pub updated_at: DateTime<Utc>,
     pub user_id: Uuid,
     pub notes: Option<String>,
-    pub login_uri: Option<String>
+    pub login_uri: Option<String>,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PasswordResponse {
     pub id: Uuid,
     pub key: String,
@@ -184,7 +185,7 @@ pub struct PasswordResponse {
     pub updated_at: DateTime<Utc>,
     pub user_id: Uuid,
     pub notes: Option<String>,
-    pub login_uri: Option<String>
+    pub login_uri: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -194,11 +195,12 @@ struct PasswordEntry {
 }
 
 #[derive(Deserialize, AsChangeset)]
+#[serde(rename_all = "camelCase")]
 #[diesel(table_name = passwords)]
 struct PasswordEntryUpdate {
     value: String,
     pub notes: Option<String>,
-    pub login_uri: Option<String>
+    pub login_uri: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -216,17 +218,18 @@ impl From<Password> for PasswordResponse {
             updated_at: p.updated_at,
             user_id: p.user_id,
             notes: p.notes,
-            login_uri: p.login_uri
+            login_uri: p.login_uri,
         }
     }
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CsvPasswordRecord {
     pub key: String,
     pub value: String,
     pub notes: Option<String>,
-    pub login_uri: Option<String>
+    pub login_uri: Option<String>,
 }
 
 // This helper function takes a token and returns the user_id if it's valid
@@ -262,7 +265,7 @@ async fn create_password(
     some_key: String,
     some_value: String,
     some_notes: Option<String>,
-    some_login_uri: Option<String>
+    some_login_uri: Option<String>,
 ) -> Result<PasswordResponse, String> {
     let (mut conn, auth_user_id) = state_conn_token(&app, &token).await?;
     let new_password = NewPassword {
@@ -282,6 +285,8 @@ async fn create_password(
     // 4. Return the safe DTO
     Ok(created_password.into())
 }
+
+
 
 #[tauri::command]
 async fn get_all_passwords(app: tauri::AppHandle, token: String) -> Result<Vec<Password>, String> {
@@ -308,7 +313,7 @@ async fn update_password(
     let payload = PasswordEntryUpdate {
         value: some_value,
         notes: some_notes,
-        login_uri: some_login_uri
+        login_uri: some_login_uri,
     };
     let updated_pass = diesel::update(
         passwords
@@ -319,8 +324,8 @@ async fn update_password(
     .get_result::<Password>(&mut conn)
     .await
     .map_err(|e| e.to_string())?;
-
     Ok(updated_pass.into())
+    
 }
 
 #[tauri::command]
