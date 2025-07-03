@@ -224,7 +224,6 @@ impl From<Password> for PasswordResponse {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CsvPasswordRecord {
     pub key: String,
     pub value: String,
