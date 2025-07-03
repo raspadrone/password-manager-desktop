@@ -18,6 +18,7 @@ type Password = {
     updated_at: string;
     user_id: string;
     notes: string | null;
+    loginUri: string | null;
 };
 
 // --- The Create Password Form Component ---
@@ -26,6 +27,7 @@ function CreatePasswordForm({ onFormSubmit }: { onFormSubmit: () => void }) {
     const [key, setKey] = useState('');
     const [value, setValue] = useState('');
     const [notes, setNotes] = useState('');
+    const [loginUri, setLoginUri] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
 
@@ -43,6 +45,7 @@ function CreatePasswordForm({ onFormSubmit }: { onFormSubmit: () => void }) {
                 someKey: key,
                 someValue: value,
                 someNotes: notes || null,
+                loginUri: loginUri || null,
             });
             toast.success('Password created successfully!');
             onFormSubmit(); // Notify parent to close modal and refresh
@@ -58,6 +61,7 @@ function CreatePasswordForm({ onFormSubmit }: { onFormSubmit: () => void }) {
             <div className="space-y-4">
                 <FormInput label="Key (e.g., 'Gmail')" type="text" value={key} onChange={(e) => setKey(e.target.value)} />
                 <FormInput label="Value (the password)" type="password" value={value} onChange={(e) => setValue(e.target.value)} />
+                <FormInput label="Login URI (optional)" type="text" value={loginUri} onChange={(e) => setLoginUri(e.target.value)} required={false} />
                 <FormInput label="Notes (optional)" as="textarea" type="text" value={notes} required={false} onChange={(e) => setNotes(e.target.value)} />
             </div>
             <div className="mt-6 flex justify-end">
@@ -78,6 +82,7 @@ function EditPasswordForm({ password, onFormSubmit }: EditPasswordFormProps) {
     // Form state is initialized from the prop
     const [value, setValue] = useState(password.value);
     const [notes, setNotes] = useState(password.notes || '');
+    const [loginUri, setLoginUri] = useState(password.notes || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { token } = useAuth();
     // This special hook syncs the form state if the user clicks a different
@@ -85,6 +90,7 @@ function EditPasswordForm({ password, onFormSubmit }: EditPasswordFormProps) {
     useEffect(() => {
         setValue(password.value);
         setNotes(password.notes || '');
+        setLoginUri(password.loginUri || '');
     }, [password]);
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -100,7 +106,8 @@ function EditPasswordForm({ password, onFormSubmit }: EditPasswordFormProps) {
                 token,
                 someKey: password.key,
                 someValue: value,
-                someNotes: notes || null
+                someNotes: notes || null,
+                someLoginUri: loginUri || null
             });
             toast.success(`'${password.key}' was updated successfully!`);
             onFormSubmit(); // Tell the parent we are done
@@ -121,6 +128,7 @@ function EditPasswordForm({ password, onFormSubmit }: EditPasswordFormProps) {
                 </div>
                 <FormInput label="New Value (the password)" type="password" value={value} onChange={(e) => setValue(e.target.value)} />
                 <FormInput label="Notes" as="textarea" value={notes} onChange={(e) => setNotes(e.target.value)} required={false} />
+                <FormInput label="Login URI (optional)" type="text" value={loginUri} onChange={(e) => setLoginUri(e.target.value)} required={false} />
             </div>
             <div className="mt-6 flex justify-end">
                 <Button type="submit" disabled={isSubmitting}>
