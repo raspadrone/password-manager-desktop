@@ -10,7 +10,7 @@ diesel::table! {
         updated_at -> Timestamptz,
         user_id -> Uuid,
         notes -> Nullable<Text>,
-        login_uri -> Nullable<Text>
+        login_uri -> Nullable<Text>,
     }
 }
 

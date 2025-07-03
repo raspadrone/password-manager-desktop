@@ -21,6 +21,12 @@ type Password = {
     loginUri: string | null;
 };
 
+function ExternalLinkIcon() {
+    return (
+        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+    );
+}
+
 // --- The Create Password Form Component ---
 function CreatePasswordForm({ onFormSubmit }: { onFormSubmit: () => void }) {
     const { token } = useAuth();
@@ -45,7 +51,7 @@ function CreatePasswordForm({ onFormSubmit }: { onFormSubmit: () => void }) {
                 someKey: key,
                 someValue: value,
                 someNotes: notes || null,
-                loginUri: loginUri || null,
+                someLoginUri: loginUri || null,
             });
             toast.success('Password created successfully!');
             onFormSubmit(); // Notify parent to close modal and refresh
@@ -82,7 +88,7 @@ function EditPasswordForm({ password, onFormSubmit }: EditPasswordFormProps) {
     // Form state is initialized from the prop
     const [value, setValue] = useState(password.value);
     const [notes, setNotes] = useState(password.notes || '');
-    const [loginUri, setLoginUri] = useState(password.notes || '');
+    const [loginUri, setLoginUri] = useState(password.loginUri || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { token } = useAuth();
     // This special hook syncs the form state if the user clicks a different
@@ -258,6 +264,18 @@ export default function DashboardPage() {
                     <li key={p.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
                         <div className="flex-grow cursor-pointer pr-4" onClick={() => setEditingPassword(p)}>
                             <p className="font-mono font-semibold text-slate-800">{p.key}</p>
+                            {p.loginUri && (
+                                <a
+                                    href={p.loginUri}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()} // Prevent card click-for-edit
+                                    className="text-sm text-blue-600 hover:underline flex items-center"
+                                >
+                                    {p.loginUri}
+                                    <ExternalLinkIcon />
+                                </a>
+                            )}
                             {p.notes && <p className="text-sm text-slate-500 truncate">{p.notes.length < 20 ? p.notes : p.notes.slice(0, 20) + '...'}</p>}
                         </div>
                         <Button
