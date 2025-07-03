@@ -158,6 +158,8 @@ pub struct NewPassword<'a> {
     pub value: &'a str,
     pub user_id: Uuid,
     pub notes: Option<&'a str>,
+    pub login_uri: Option<&'a str>,
+    
 }
 
 #[derive(Debug, Clone, PartialEq, Queryable, Insertable, Serialize)]
@@ -170,6 +172,7 @@ pub struct Password {
     pub updated_at: DateTime<Utc>,
     pub user_id: Uuid,
     pub notes: Option<String>,
+    pub login_uri: Option<String>
 }
 
 #[derive(Serialize)]
@@ -181,6 +184,7 @@ pub struct PasswordResponse {
     pub updated_at: DateTime<Utc>,
     pub user_id: Uuid,
     pub notes: Option<String>,
+    pub login_uri: Option<String>
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -194,6 +198,7 @@ struct PasswordEntry {
 struct PasswordEntryUpdate {
     value: String,
     pub notes: Option<String>,
+    pub login_uri: Option<String>
 }
 
 #[derive(Deserialize, Debug)]
@@ -211,6 +216,7 @@ impl From<Password> for PasswordResponse {
             updated_at: p.updated_at,
             user_id: p.user_id,
             notes: p.notes,
+            login_uri: p.login_uri
         }
     }
 }
@@ -220,6 +226,7 @@ pub struct CsvPasswordRecord {
     pub key: String,
     pub value: String,
     pub notes: Option<String>,
+    pub login_uri: Option<String>
 }
 
 // This helper function takes a token and returns the user_id if it's valid
@@ -255,12 +262,14 @@ async fn create_password(
     some_key: String,
     some_value: String,
     some_notes: Option<String>,
+    some_login_uri: Option<String>
 ) -> Result<PasswordResponse, String> {
     let (mut conn, auth_user_id) = state_conn_token(&app, &token).await?;
     let new_password = NewPassword {
         key: &some_key,
         value: &some_value,
         notes: some_notes.as_deref(), // Convert Option<String> to Option<&str>
+        login_uri: some_login_uri.as_deref(),
         user_id: auth_user_id,
     };
 
@@ -293,11 +302,13 @@ async fn update_password(
     some_key: String,
     some_value: String,
     some_notes: Option<String>,
+    some_login_uri: Option<String>,
 ) -> Result<PasswordResponse, String> {
     let (mut conn, auth_user_id) = state_conn_token(&app, &token).await?;
     let payload = PasswordEntryUpdate {
         value: some_value,
         notes: some_notes,
+        login_uri: some_login_uri
     };
     let updated_pass = diesel::update(
         passwords
@@ -472,6 +483,7 @@ async fn get_one_from_csv(
             key: &record.key,
             value: &record.value,
             notes: record.notes.as_deref(),
+            login_uri: record.login_uri.as_deref(),
             user_id: auth_user_id,
         };
 
