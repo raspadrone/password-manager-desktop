@@ -269,13 +269,18 @@ export default function DashboardPage() {
                                     href={p.loginUri}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()} // Prevent card click-for-edit
-                                    className="text-sm text-blue-600 hover:underline flex items-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                    title={p.loginUri}
+                                    className="text-sm text-blue-600 hover:underline break-all" // The correct fix
                                 >
-                                    {p.loginUri}
+                                    {p.loginUri.length > 50
+                                        ? `${p.loginUri.slice(0, 50)}...`
+                                        : p.loginUri
+                                    }
                                     <ExternalLinkIcon />
                                 </a>
                             )}
+
                             {p.notes && <p className="text-sm text-slate-500 truncate">{p.notes.length < 20 ? p.notes : p.notes.slice(0, 20) + '...'}</p>}
                         </div>
                         <Button
